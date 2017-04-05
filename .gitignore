@@ -10,5 +10,7 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
+# Project-local directory, changes inside this directory to be ignored 
+# if user executes, ./configure.sh in main folder, a fresh copy of this 
+# directory is generated which shouldnt be committed everytime.
 ./client/pb/mesos
