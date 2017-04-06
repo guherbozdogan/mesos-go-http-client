@@ -1,9 +1,9 @@
 package frame
 
 type FrameIOType int
-type Frame bytes []
+type Frame * [] bytes
 
-type FrameRead func(bytes[], int )
+type FrameRead func(Frame, int )
 type FrameWritten func (int )
 
 type FrameIO interface {
@@ -15,8 +15,7 @@ type FrameIO interface {
 
 const (
     RecordIO FrameIOType = 1 << iota
-    
-)
+  )
 
 func NewFrameIOType(t FrameIOType) FrameIO {
     switch t {
