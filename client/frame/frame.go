@@ -1,27 +1,13 @@
 package frame
 
-type FrameIOType int
-type Frame * [] bytes
+import  "context"
 
-type FrameRead func(Frame, int )
-type FrameWritten func (int )
 
-type FrameIO interface {
-   
-    Read(io.ReadCloser, FrameRead )  (interface{}, error) 
-    Write(io.WriteCloser, FrameWitten )  (interface{}, error) 
-        
- }
-
-const (
-    RecordIO FrameIOType = 1 << iota
-  )
-
-func NewFrameIOType(t FrameIOType) FrameIO {
+func NewFrameIOType(t FrameIOType, c context.Context) FrameIO {
     switch t {
-    case RecordIO:
-        return newRecordIO()
+    case CTRecordIO:
+        return &RecordIO{ctx:c} //NewRecordIO(ctx)
     default:
-        return newRecordIO()
+        return &RecordIO{ctx:c}//NewRecordIO(ctx)
     }
 }

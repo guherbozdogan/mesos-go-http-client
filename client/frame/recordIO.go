@@ -2,19 +2,25 @@ package frame
 
 	
 import  ( 
-    "fmt"
-    "time"
     "sync/atomic"
-    "encoding/binary"
+    "sync"
+    binary "encoding/binary"
     "bufio"
+    "context"
+    "io"
+    "bytes"
+    "errors"
+    
     )
 
 type RecordIO  struct {
         ctx context.Context
  }
 
+func NewRecordIO(c context.Context)  FrameIO {
+    return &RecordIO{ctx:c}
+}
 type Bytes  []byte
-
 
 //helper functionto read a line with bufio
 func Readln(r  *bufio.Reader) (Bytes, error) {
@@ -27,29 +33,25 @@ func Readln(r  *bufio.Reader) (Bytes, error) {
         line, isPrefix, err = r.ReadLine()
         ln = append(ln, line...)
     }
-    return Bytes,err
+    return ln,err
 }
 
 //helper function to check whether a flag is set or not in atomic sense
-func isAtomicValSet( v *uint32 ) bool
-{
+func isAtomicValSet( v *uint32 ) bool {
     opsFinal := atomic.LoadUint32(v)
     if opsFinal > 0 {
         return true;
-    }
-    else {
+    }    else {
         return false;
     }
 }
     
-//read buffer size (might be set to lower values )
-const BUF_SIZE=1024
 
 //interface function for Read
-func (*RecordIO )  Read(reader io.ReadCloser, f FrameRead)  (interface{}, error) {
+func (rc *RecordIO )  Read(reader io.ReadCloser, f FrameRead)  (interface{}, error) {
 
-    //flag to be set when context is 
-    var isContextDone  uint32 =0;
+    //flag to be set when context is done
+    var icd  uint32 =0;
     
     errc:=make(chan error) //channel for sending error out
     
@@ -68,110 +70,107 @@ func (*RecordIO )  Read(reader io.ReadCloser, f FrameRead)  (interface{}, error)
         defer wg.Done();
         
         //check if context is already cancelled/done, if so, return
-        fcc:=func  () bool
-        {
-            opsFinal := atomic.LoadUint32(&isContextDone)
+        fcc:=func  () bool    {
+            opsFinal := atomic.LoadUint32(&icd)
             if opsFinal > 0 {
                 return true;
-            }
-            else {
+            }  else {
                 return false;
             }   
         }
         
         
-     for ! fcc()  {
-         b, err := Readln(r)
+        for ! fcc()  {
+            b, err := Readln(r)
       
          
-         //check if context is already cancelled/done, if so, return
-         if fcc() {    
-            return;
-        }
-         if err!= nil {
-               errc <- err  
-               return;
-        }     
+            //check if context is already cancelled/done, if so, return
+            if fcc() {    
+                return;
+            }
+            if err!= nil {
+                errc <- err  
+                   return;
+            }     
          
-         buf := bytes.NewBuffer(b) // b is []byte
-         s, err := binary.ReadVaruint(buf)
-         if err!= nil {
-            //note/add: convert the error that byte is not read
-            errc <- err         
-            return;
-        }
+            buf := bytes.NewBuffer(b) // b is []byte
+            s, err := binary.ReadVarint(buf)
+            if err!= nil {
+                //note/add: convert the error that byte is not read
+                errc <- err         
+                return;
+            }
         
-         //add some check constraints here to the read buffer size!!!!!!!!!!!  might be illegitimate! 
+            //add some check constraints here to the read buffer size!!!!!!!!!!!  might be illegitimate! 
          
-         //check for panics of memory alloc later
+            //check for panics of memory alloc later
          
-         trb = make([] byte, s,s)
-         trbr= trb[:]
-         l:= 0 //length of read bytes
-         for !fcc()  {
-                    (n , err )= r.ReadBytes(trbr);
+            trb := make([] byte, s,s)
+            trbr:= trb[:]
+            l:= int64(0) //length of read bytes
+            for !fcc()  {
+                    ni , err  := r.Read(trbr)
+                    n:=int64(ni)
                      l+=n
                     //check if context is already cancelled/done, if so, return
                     if fcc() {    
                         return;
                     }
              
-             //read entire data
-             // add check if received n is smaller and or n is larger but eof returned
-             if err==io.EOF {
-                 if l<s {
+                //read entire data
+                // add check if received n is smaller and or n is larger but eof returned
+                if err==io.EOF {
+                    if l<s {
                      
-                     errc<-error.NewError("channel closed before receiving frame")
-                     return;
-                 } else {
-                     trbTmp = make([]byte, s,s)
-                     copy(trbTmp,trb)
-                     f(&trbTmp)
+                        errc<-errors.New("channel closed before receiving frame")
+                         return;
+                    } else {
+                        trbTmp := make([]byte, s,s)
+                        copy(trbTmp,trb)
+                        f(Frame(&trbTmp),s)
                     
-                     errc <- error.NewError("channel closed")
-                    return;  
-                 }
+                        errc <- errors.New("channel closed")
+                        return;  
+                     }
                    
-             }
-             //if all entire frame read            
-             else if l == s {
-                trbTmp = make([]byte, s,s)
-                copy(trbTmp,trb)
-                 f(&trbTmp)
-                 break;
+                }    else if l == s {  //if all entire frame read            
+                    trbTmp := make([]byte, s,s)
+                    copy(trbTmp,trb)
+                    f(Frame(&trbTmp),s)
+                     break;
                     
-             } 
-             //if entire frame is not read yet, continue reading in next loop
-             else {
-                 trbr=trb[l:]
+                } else {                //if entire frame is not read yet, continue reading in next loop
+                    trbr=trb[l:]
+                }
             }
         }
-    }
     }()
-    done := ctx.Done()
+    
+    done := rc.ctx.Done()
    
          
      select {
-     case msg := <-done:
+     case  <-done:
          
-         opsFinal := atomic.LoadUint32(&ops)
-         atomic.AddUint32(&ops, 1)
-         //cancel above loop
+         atomic.AddUint32(&icd, 1)
+         //wait graceful close
          wg.Wait();
-         return (nil, ctx.err())
+         close(errc)
+         return nil, errors.New("context done")
          
          case    e := <-errc:
          
          wg.Wait();
-         errc.close();
+         close(errc);
          
-         return (nil, e)
+         return nil, e
      }
 } 
 
-func (RecordIO *)  Write(writer io.WriteCloser, f  frameWritten)  (interface{}, error) {
+func (*RecordIO )  Write(writer io.WriteCloser, f  FrameWritten)  (interface{}, error) {
    
-        
-        
+    //not need to implement right now:)
+    //to be added later 
+      return nil, nil
         
  }
