@@ -3330,11 +3330,6 @@ type Resource_DiskInfo_Persistence struct {
 	// with the "destroy" ACL to determine whether an entity
 	// attempting to destroy the volume is permitted to do so.
 	//
-	// NOTE: This field is optional, while the `principal` found in
-	// `ReservationInfo` is required. This field is optional to
-	// allow for the possibility of volume creation without a
-	// principal, though currently it must be provided.
-	//
 	// NOTE: This field should match the FrameworkInfo.principal of
 	// the framework that created the volume.
 	Principal        *string `protobuf:"bytes,2,opt,name=principal" json:"principal,omitempty"`
