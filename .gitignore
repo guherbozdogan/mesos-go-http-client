@@ -13,6 +13,8 @@
 # Project-local directory, changes inside this directory to be ignored 
 # if user executes, ./configure.sh in main folder, a fresh copy of this 
 # directory is generated which shouldnt be committed everytime.
-./client/pb/mesos
-./client/pb/mesos/**
-./client/pb/mesos/**/*
+client/pb/mesos
+client/pb/mesos/v1
+client/pb/mesos/**/*
+client/pb/mesos/**/**/*
+client/pb/mesos/**/**/*
