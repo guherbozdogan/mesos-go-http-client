@@ -19,7 +19,7 @@ find ./v1/   -type f ! -name '*.proto' -exec rm {} \; && find . -type f -name '*
 ##note/guherbozdogan:
 #add checks of outputs of the functions 
 if [ -d client/pb/mesos  ]; then
-	d client/pb && rm -rf mesos && mkdir mesos  && cd mesos;
+    cd client/pb && rm -rf mesos && mkdir mesos  && cd mesos;
     downloadGitFolder 
     callProtoBuffGen
 else
