@@ -1,6 +1,8 @@
 package frame
 
-
+const (
+    CTRecordIO FrameIOType = 1 << iota
+  )
 
 
 func NewFrameIOType(t FrameIOType) FrameIO {
