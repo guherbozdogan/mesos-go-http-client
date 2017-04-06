@@ -14,11 +14,11 @@ import  (
     )
 
 type RecordIO  struct {
-        ctx context.Context
+        
  }
 
-func NewRecordIO(c context.Context)  FrameIO {
-    return &RecordIO{ctx:c}
+func NewRecordIO()  FrameIO {
+    return &RecordIO{}
 }
 type Bytes  []byte
 
@@ -48,8 +48,9 @@ func isAtomicValSet( v *uint32 ) bool {
     
 
 //interface function for Read
-func (rc *RecordIO )  Read(reader io.ReadCloser, f FrameRead)  (interface{}, error) {
+func (rc RecordIO )  Read(ctx context.Context, reader io.ReadCloser, f FrameRead)  (interface{}, error) {
 
+    
     //flag to be set when context is done
     var icd  uint32 =0;
     
@@ -146,7 +147,7 @@ func (rc *RecordIO )  Read(reader io.ReadCloser, f FrameRead)  (interface{}, err
         }
     }()
     
-    done := rc.ctx.Done()
+    done := ctx.Done()
    
          
      select {
@@ -167,7 +168,7 @@ func (rc *RecordIO )  Read(reader io.ReadCloser, f FrameRead)  (interface{}, err
      }
 } 
 
-func (*RecordIO )  Write(writer io.WriteCloser, f  FrameWritten)  (interface{}, error) {
+func (*RecordIO )  Write(c context.Context,   writer io.WriteCloser, f  FrameWritten)  (interface{}, error) {
    
     //not need to implement right now:)
     //to be added later 
