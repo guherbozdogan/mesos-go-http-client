@@ -47,7 +47,7 @@ func isAtomicValSet( v *uint32 ) bool {
     
 
 //interface function for Read
-func (rc RecordIO )  Read(ctx context.Context, reader io.ReadCloser, f FrameReadFunc)  (interface{}, error) {
+func (rc RecordIO )  Read(ctx context.Context, reader io.ReadCloser, f FrameReadFunc, erf ErrorFunc)   {
 
     
     //flag to be set when context is done
@@ -155,22 +155,24 @@ func (rc RecordIO )  Read(ctx context.Context, reader io.ReadCloser, f FrameRead
          atomic.AddUint32(&icd, 1)
          //wait graceful close
          wg.Wait();
+         erf(ctx, ctx.Err())
          close(errc)
-         return nil, errors.New("context done")
+         return;
          
          case    e := <-errc:
          
          wg.Wait();
+         erf(ctx,e);
          close(errc);
          
-         return nil, e
+         return 
      }
 } 
 
-func (*RecordIO )  Write(c context.Context,   writer io.WriteCloser, f  FrameWritten)  (interface{}, error) {
+func (*RecordIO )  Write(c context.Context,   writer io.WriteCloser, f  FrameWritten, erf ErrorFunc)  {
    
     //not need to implement right now:)
     //to be added later 
-      return nil, nil
+      return 
         
  }
