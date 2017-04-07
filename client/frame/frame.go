@@ -5,7 +5,7 @@ const (
   )
 
 
-func NewFrameIOType(t FrameIOType) FrameIO {
+func NewFrameIO(t FrameIOType) FrameIO {
     switch t {
     case CTRecordIO:
         return &RecordIO{} //NewRecordIO(ctx)

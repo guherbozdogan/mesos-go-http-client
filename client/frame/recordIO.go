@@ -10,7 +10,6 @@ import  (
     "io"
     "bytes"
     "errors"
-    
     )
 
 type RecordIO  struct {
@@ -48,7 +47,7 @@ func isAtomicValSet( v *uint32 ) bool {
     
 
 //interface function for Read
-func (rc RecordIO )  Read(ctx context.Context, reader io.ReadCloser, f FrameRead)  (interface{}, error) {
+func (rc RecordIO )  Read(ctx context.Context, reader io.ReadCloser, f FrameReadFunc)  (interface{}, error) {
 
     
     //flag to be set when context is done
@@ -128,7 +127,7 @@ func (rc RecordIO )  Read(ctx context.Context, reader io.ReadCloser, f FrameRead
                     } else {
                         trbTmp := make([]byte, s,s)
                         copy(trbTmp,trb)
-                        f(Frame(trbTmp),s)
+                        f(ctx,Frame(trbTmp),s)
                     
                         errc <- errors.New("channel closed")
                         return;  
@@ -137,7 +136,7 @@ func (rc RecordIO )  Read(ctx context.Context, reader io.ReadCloser, f FrameRead
                 }    else if l == s {  //if all entire frame read            
                     trbTmp := make([]byte, s,s)
                     copy(trbTmp,trb)
-                    f(Frame(trbTmp),s)
+                    f(ctx,Frame(trbTmp),s)
                      break;
                     
                 } else {                //if entire frame is not read yet, continue reading in next loop
