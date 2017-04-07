@@ -169,7 +169,7 @@ func (rc RecordIO )  Read(ctx context.Context, reader io.ReadCloser, f FrameRead
      }
 } 
 
-func (*RecordIO )  Write(c context.Context,   writer io.WriteCloser, f  FrameWritten, erf ErrorFunc)  {
+func (*RecordIO )  Write(c context.Context,   writer io.WriteCloser, f  FrameWritten, erf ErrorFunc)   {
    
     //not need to implement right now:)
     //to be added later 

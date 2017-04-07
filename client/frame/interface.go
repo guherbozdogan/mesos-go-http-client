@@ -8,12 +8,17 @@ import  "context"
 type FrameIOType int
 type Frame  [] byte
 
-type FrameReadFunc func(context.Context, Frame, int64 ) 
-type FrameReadFuncDecorator  func(FrameReadFunc ) FrameReadFunc 
-type ErrorFunc func(context.Context,interface{} )
+type FrameReadFunc func(context.Context, Frame, int64 )  context.Context
+
 
     
-type FrameWritten func (context.Context, int64 ) ()
+    
+
+                            
+type ErrorFunc func(context.Context,interface{} )  context.Context
+
+    
+type FrameWritten func (context.Context, int64 ) context.Context
 
 type FrameIO interface {
    
