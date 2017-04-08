@@ -13,7 +13,7 @@ git init && git config core.sparsecheckout true &&  echo 'include/mesos/v1' > .g
 
 #generates the protobuf go files 
 function callProtoBuffGen {
-find ./v1/   -type f ! -name '*.proto' -exec rm {} \; && find . -type f -name '*.proto' -exec protoc   --proto_path=${GOPATH}/src:${GOPATH}/src/github.com/gogo/protobuf/protobuf:. --gogo_out=.   {} \;
+find ./v1/   -type f ! -name '*.proto' -exec rm {} \; && find . -type f -name '*.proto' -exec protoc   --proto_path=${GOPATH}/src:${GOPATH}/src/github.com/gogo/protobuf/protobuf:. --gogo_out=.    {} \;  && find ./v1/  -type f -name '*.pb.go' -exec   perl -pi  -e   's/(import mesos_v1.* \")/$1github.com\/guherbozdogan\/mesos-go-http-client\/client\/pb\//g;'   {}  \;
 }
 
 ##note/guherbozdogan:
