@@ -19,13 +19,18 @@ func NewFrameIO(t FrameIOType) FrameIO {
 func DecorateFrameReadFunc(pre []FrameReadFunc, post []FrameReadFunc, f FrameReadFunc) FrameReadFunc {
 	return func(ctx context.Context, fr Frame, n int64) context.Context {
 
-		for i := len(pre); i >= 0; i++ {
-			ctx = pre[i](ctx, fr, n)
+		for i := 0; i < len(pre); i++ {
+			if pre[i] != nil {
+				ctx = pre[i](ctx, fr, n)
+			}
 		}
-		ctx = f(ctx, fr, n)
-
-		for i := len(post); i >= 0; i++ {
-			ctx = post[i](ctx, fr, n)
+		if f != nil {
+			ctx = f(ctx, fr, n)
+		}
+		for i := 0; i < len(post); i++ {
+			if post[i] != nil {
+				ctx = post[i](ctx, fr, n)
+			}
 		}
 		return ctx
 	}
