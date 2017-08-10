@@ -1,4 +1,4 @@
-package frame_test
+package frametest
 
 import (
 	. "github.com/onsi/ginkgo"
