@@ -11,16 +11,25 @@ import (
 	"github.com/guherbozdogan/mesos-go-http-client/client/frame"
 	"github.com/onsi/gomega"
 	//"os"
+	//	"errors"
+	"fmt"
 	"io"
 )
 
 type ClosingBuffer struct {
 	*bytes.Buffer
+	err error
 }
 
+func (cb *ClosingBuffer) CloseWithErr(erra error) error {
+	//and the error is initialized to no-error
+	cb.err = erra
+	cb.Close()
+	return nil
+}
 func (cb *ClosingBuffer) Close() error {
 	//and the error is initialized to no-error
-	return nil
+	return cb.err
 }
 
 var _ = Describe("RecordIO", func() {
@@ -39,15 +48,19 @@ var _ = Describe("RecordIO", func() {
 			}
 			var errFunc = func(c context.Context, i interface{}) context.Context {
 
+				var err error = i.(error)
+				var s = err.Error()
+				fmt.Print(s)
 				return c
+
 			}
 
 			var recIO = frame.NewRecordIO()
-			var tmpRC = &ClosingBuffer{bytes.NewBuffer(inputLst[0])}
+			var tmpRC = &ClosingBuffer{Buffer: bytes.NewBuffer(inputLst[0]), err: nil}
 			var rc io.ReadCloser
 			rc = tmpRC
 			recIO.Read(context.Background(), rc, frameReadFunc, errFunc)
-
+			//tmpRC.Buffer.
 			It("should read ", func() {
 				//				buf.Write(inputLst[0])
 
