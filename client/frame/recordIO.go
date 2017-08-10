@@ -11,8 +11,17 @@ import (
 	"sync/atomic"
 
 	//	"bytes"
-	"fmt"
+	//	"fmt"
 	"strconv"
+)
+
+var (
+	ErrorChannelClosedBeforeReceivingFrame = errors.New("Channel closed before receiving frame")
+	ErrorFormatErr                         = errors.New("Format Error")
+
+	ErrorParentContextBeenCancelled = errors.New("Parent context been cancelled")
+	ErrorGeneralIOErr               = errors.New("General IO Error")
+	ErrorEOF                        = errors.New("EOF Received")
 )
 
 type RecordIO struct {
@@ -83,8 +92,8 @@ func (rc RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadFu
 		for !fcc() {
 			b, err := Readln(r)
 
-			b = append(b, byte(' '))
-			fmt.Print("%s:", b)
+			//b = append(b, byte(' '))
+			s1 := string(b[:])
 
 			//check if context is already cancelled/done, if so, return
 			if fcc() {
@@ -92,18 +101,21 @@ func (rc RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadFu
 			}
 			if err != nil {
 				errc <- err
+				//log error !
 				return
 			}
 
 			//buf := bytes.NewBuffer(b) // b is []byte
-			si, err := strconv.Atoi(string(b[:]))
-			s := int64(si)
-			//binary.ReadVarint(buf)
-			if err != nil {
-				//note/add: convert the error that byte is not read
-				errc <- err
+			si, errCn := strconv.Atoi(s1)
+			//add err handling here!
+
+			if errCn != nil {
+				errc <- ErrorFormatErr
+				//log error !
 				return
 			}
+
+			s := int64(si)
 
 			//add some check constraints here to the read buffer size!!!!!!!!!!!  might be illegitimate!
 
@@ -125,25 +137,37 @@ func (rc RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadFu
 				// add check if received n is smaller and or n is larger but eof returned
 				if err == io.EOF {
 					if l < s {
-
-						errc <- errors.New("channel closed before receiving frame")
+						errc <- ErrorChannelClosedBeforeReceivingFrame
+						//log error!
 						return
 					} else {
 						trbTmp := make([]byte, s, s)
 						copy(trbTmp, trb)
 						f(ctx, Frame(trbTmp), s)
 
-						errc <- errors.New("channel closed")
+						errc <- ErrorEOF
 						return
 					}
 
-				} else if l == s { //if all entire frame read
+				}
+				if l == s { //if all entire frame read
 					trbTmp := make([]byte, s, s)
 					copy(trbTmp, trb)
 					f(ctx, Frame(trbTmp), s)
+
+					if err != nil {
+						errc <- err
+						return
+
+					}
 					break
 
+				} else if err != nil {
+					errc <- err
+					return
+
 				} else { //if entire frame is not read yet, continue reading in next loop
+
 					trbr = trb[l:]
 				}
 			}

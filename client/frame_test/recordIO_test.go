@@ -51,7 +51,7 @@ var _ = Describe("RecordIO", func() {
 			It("should read ", func() {
 				//				buf.Write(inputLst[0])
 
-				gomega.Eventually(recChan).Should(gomega.Receive())
+				gomega.Eventually(recChan, 10).Should(gomega.Receive())
 
 			})
 		})
