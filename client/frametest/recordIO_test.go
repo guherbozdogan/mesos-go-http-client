@@ -8,9 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	//	"io"
 	"bufio"
-	"fmt"
 	"io"
-	"reflect"
 )
 
 var _ = Describe("RecordIO", func() {
@@ -76,13 +74,14 @@ var _ = Describe("RecordIO", func() {
 			It("should read ", func() {
 
 				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
+				go timeoutHelper(2500000, cancelFunc)
+
 				recIO.Read(contextWithCancel, inputLst["1 frame with no waiting"], frameReadFunc, errFunc)
 
 				var s []byte
 				gomega.Eventually(recChan, 10).Should(gomega.Receive(&s))
-				Ω(s).Should(Equal(byteLst["1 frame with no waiting"][4:]))
+				Ω(s).Should(Equal(byteLst["1 frame with no waiting"]))
 
-				cancelFunc()
 			}) /*
 				It("should handle EOF gracefully ", func() {
 

@@ -111,6 +111,18 @@ func (cb *MockFrameReaderCloser) Read(p []byte) (n int, err error) {
 	}
 	return 0, nil
 }
+func timeoutHelper(priod time.Duration, f func()) {
+	timeout := make(chan bool, 1)
+	go func() {
+		time.Sleep(priod * time.Nanosecond)
+		timeout <- true
+	}()
+
+	select {
+	case <-timeout:
+		f()
+	}
+}
 
 var byteLst = map[string][]byte{
 	"1 frame with no waiting":                  []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
