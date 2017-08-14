@@ -17,6 +17,7 @@ import (
 	//byte allocation buffers to be limited
 )
 
+//const BufferLen = 2048 //to make
 var (
 	ErrorChannelClosedBeforeReceivingFrame = errors.New("Channel closed before receiving frame")
 	ErrorFormatErr                         = errors.New("Format Error")
@@ -24,19 +25,21 @@ var (
 	ErrorParentContextBeenCancelled = errors.New("Parent context been cancelled")
 	ErrorGeneralIOErr               = errors.New("General IO Error")
 	ErrorEOF                        = errors.New("EOF Received")
+	ErrorInternal                   = errors.New("Module Internal Error")
 )
 
 type RecordIO struct {
+	ReadLine func(r *bufio.Reader, rc io.ReadCloser) (Bytes, error)
 }
 
-func NewRecordIO() FrameIO {
-	return &RecordIO{}
+func NewRecordIO() *RecordIO {
+	return &RecordIO{ReadLine: Readln}
 }
 
 type Bytes []byte
 
 //helper functionto read a line with bufio
-func Readln(r *bufio.Reader) (Bytes, error) {
+func Readln(r *bufio.Reader, rc io.ReadCloser) (Bytes, error) {
 	var (
 		isPrefix bool  = true
 		err      error = nil
@@ -44,7 +47,12 @@ func Readln(r *bufio.Reader) (Bytes, error) {
 	)
 	for isPrefix && err == nil {
 		line, isPrefix, err = r.ReadLine()
-		ln = append(ln, line...)
+		if line != nil {
+			ln = append(ln, line...)
+		} else {
+			return []byte(""), ErrorInternal
+		}
+
 	}
 	return ln, err
 }
@@ -60,7 +68,7 @@ func isAtomicValSet(v *uint32) bool {
 }
 
 //interface function for Read
-func (rc RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadFunc, erf ErrorFunc) {
+func (rc *RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadFunc, erf ErrorFunc) {
 
 	//flag to be set when context is done
 	var icd uint32 = 0
@@ -69,6 +77,7 @@ func (rc RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadFu
 
 	//initialize the bufio
 	r := bufio.NewReader(reader)
+	//r := reader
 
 	//to be able to wait for the graceful exit of below function
 	var wg sync.WaitGroup
@@ -92,10 +101,7 @@ func (rc RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadFu
 		}
 
 		for !fcc() {
-			b, err := Readln(r)
-
-			//b = append(b, byte(' '))
-			s1 := string(b[:])
+			b, err := rc.ReadLine(r, reader)
 
 			//check if context is already cancelled/done, if so, return
 			if fcc() {
@@ -106,6 +112,12 @@ func (rc RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadFu
 				//log error !
 				return
 			}
+
+			//b = append(b, byte(' '))
+			if b == nil || len(b) == 0 {
+				continue
+			}
+			s1 := string(b[:])
 
 			//buf := bytes.NewBuffer(b) // b is []byte
 			si, errCn := strconv.Atoi(s1)
@@ -123,11 +135,13 @@ func (rc RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadFu
 
 			//check for panics of memory alloc later
 
-			trb := make([]byte, s, s)
+			var trb []byte
+			trb = make([]byte, s, s)
+
 			trbr := trb[:]
 			l := int64(0) //length of read bytes
 			for !fcc() {
-				ni, err := r.Read(trbr)
+				ni, err := reader.Read(trbr)
 				n := int64(ni)
 				l += n
 				//check if context is already cancelled/done, if so, return
