@@ -37,7 +37,20 @@ var _ = Describe("RecordIO", func() {
 			if tmp.index < len(tmp.lst) {
 				return tmp.lst[tmp.index].prefixBytes, nil
 			} else {
-				return []byte(""), nil
+				if tmp.lst[tmp.index-1].err != nil {
+					if tmp.lst[tmp.index-1].isErrorOccuringAtPrefix {
+						return []byte(""), tmp.lst[tmp.index-1].err
+					} else {
+
+						tmp.index--
+						return tmp.lst[tmp.index].prefixBytes, nil
+
+					}
+
+				} else {
+					return []byte(""), nil
+				}
+
 			}
 
 		} else {
@@ -45,6 +58,13 @@ var _ = Describe("RecordIO", func() {
 			if isok2 {
 				if !tmp2.bytesRead {
 					return tmp2.prefixBytes, nil
+				} else if tmp2.err != nil {
+					if tmp2.isErrorOccuringAtPrefix {
+						return []byte(""), nil
+					} else {
+						return tmp2.prefixBytes, nil
+					}
+
 				} else {
 					return []byte(""), nil
 				}
@@ -82,32 +102,38 @@ var _ = Describe("RecordIO", func() {
 				gomega.Eventually(recChan, 10).Should(gomega.Receive(&s))
 				Ω(s).Should(Equal(byteLst["1 frame with no waiting"]))
 
-			}) /*
-				It("should handle EOF gracefully ", func() {
+			})
+			It("should handle EOF gracefully ", func() {
 
-					recIO.Read(context.Background(), inputLst["1 frame with no waiting & eof at end"], frameReadFunc, errFunc)
+				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
+				go timeoutHelper(22500000, cancelFunc)
 
-					var s []byte
-					var err error
-					gomega.Eventually(recChan, 10).Should(gomega.Receive(&s))
-					gomega.Eventually(errChan, 10).Should(gomega.Receive(&err))
+				go recIO.Read(contextWithCancel, inputLst["1 frame with no waiting & eof at end"], frameReadFunc, errFunc)
 
-					Ω(s).Should(Equal(byteLst["1 frame with no waiting & eof at end"][4:]))
-					Ω(err).Should(Equal(io.EOF))
+				var s []byte
+				var err error
+				gomega.Eventually(recChan, 2000).Should(gomega.Receive(&s))
+				gomega.Eventually(errChan, 2000).Should(gomega.Receive(&err))
 
-				})
-				It("should handle specific io error gracefully ", func() {
+				Ω(s).Should(Equal(byteLst["1 frame with no waiting & eof at end"]))
+				Ω(err).Should(Equal(io.EOF))
 
-					recIO.Read(context.Background(), inputLst["1 frame with no waiting & prg err at end"], frameReadFunc, errFunc)
+			})
+			It("should handle specific io error gracefully ", func() {
 
-					var s []byte
-					var err error
-					gomega.Eventually(recChan, 10).Should(gomega.Receive(&s))
-					gomega.Eventually(errChan, 10).Should(gomega.Receive(&err))
+				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
+				go timeoutHelper(22500000, cancelFunc)
 
-					Ω(s).Should(Equal(byteLst["1 frame with no waiting & prg err at end"][4:]))
-					Ω(err).Should(Equal(io.ErrNoProgress))
-				})*/
+				recIO.Read(contextWithCancel, inputLst["1 frame with no waiting & prg err at end"], frameReadFunc, errFunc)
+
+				var s []byte
+				var err error
+				gomega.Eventually(recChan, 10).Should(gomega.Receive(&s))
+				gomega.Eventually(errChan, 10).Should(gomega.Receive(&err))
+
+				Ω(s).Should(Equal(byteLst["1 frame with no waiting & prg err at end"]))
+				Ω(err).Should(Equal(io.ErrNoProgress))
+			})
 
 		}) /*
 			Context("with 2 frames (non waited)", func() {

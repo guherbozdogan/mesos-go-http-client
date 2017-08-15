@@ -13,22 +13,23 @@ type MockReadCloser interface {
 
 //multiple instances
 type MultiMockFrameReaderCloser struct {
-	lst   []MockFrameReaderCloser
+	lst   []*MockFrameReaderCloser
 	index int
 }
 
 //mock implementation
 type MockFrameReaderCloser struct {
-	bytes       []byte
-	prefixBytes []byte
-	err         error
-	bytesRead   bool
-	period      time.Duration //nano seconds
+	isErrorOccuringAtPrefix bool
+	bytes                   []byte
+	prefixBytes             []byte
+	err                     error
+	bytesRead               bool
+	period                  time.Duration //nano seconds
 }
 
 //constructor
 func NewMockFrameReaderCloser() *MockFrameReaderCloser {
-	return &MockFrameReaderCloser{bytesRead: false}
+	return &MockFrameReaderCloser{bytesRead: false, isErrorOccuringAtPrefix: false}
 }
 
 //constructor
@@ -139,12 +140,14 @@ var inputLst = map[string]MockReadCloser{
 	"1 frame with no waiting":            &MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["1 frame with no waiting"]},
 	"1 frame with 2s waiting":            &MockFrameReaderCloser{prefixBytes: []byte("121"), period: 2 * time.Second, bytes: byteLst["1 frame with 2s waiting"]},
 	"1 incomplete frame with no waiting": &MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["1 incomplete frame with no waiting"]},
-	"1 frame with no waiting & eof at end": &MultiMockFrameReaderCloser{index: 0, lst: []MockFrameReaderCloser{
-		MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["1 frame with no waiting & eof at end"]},
-		MockFrameReaderCloser{prefixBytes: []byte("121"), err: io.EOF, bytes: byteLst["1 frame with no waiting"]}}},
-	"1 frame with no waiting & prg err at end": &MultiMockFrameReaderCloser{index: 0, lst: []MockFrameReaderCloser{
-		MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["1 frame with no waiting & prg err at end"]},
-		MockFrameReaderCloser{prefixBytes: []byte("121"), err: io.ErrNoProgress, bytes: byteLst["1 frame with no waiting & prg err at end"]}}},
+	"1 frame with no waiting & eof at end": &MultiMockFrameReaderCloser{index: 0,
+		lst: []*MockFrameReaderCloser{
+			&MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["1 frame with no waiting & eof at end"]},
+			&MockFrameReaderCloser{isErrorOccuringAtPrefix: true, prefixBytes: []byte("121"), err: io.EOF, bytes: byteLst["1 frame with no waiting"]}}},
+	"1 frame with no waiting & prg err at end": &MultiMockFrameReaderCloser{index: 0,
+		lst: []*MockFrameReaderCloser{
+			&MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["1 frame with no waiting & prg err at end"]},
+			&MockFrameReaderCloser{isErrorOccuringAtPrefix: true, prefixBytes: []byte("121"), err: io.ErrNoProgress, bytes: byteLst["1 frame with no waiting & prg err at end"]}}},
 	"2 frames with no waiting": &MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["2 frames with no waiting"]},
 	"2 frames with 1s waiting": &MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["2 frames with 1s waiting"]},
 	"insufficient frame":       &MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["insufficient frame"]}}
