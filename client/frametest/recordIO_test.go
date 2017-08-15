@@ -135,7 +135,7 @@ var _ = Describe("RecordIO", func() {
 				Ω(err).Should(Equal(frame.ErrorChannelClosedBeforeReceivingFrame))
 
 			})
-			It("should handle specific io error gracefully ", func() {
+			It("should handle specific io error gracefully at prefix", func() {
 
 				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
 				go timeoutHelper(22500000, cancelFunc)
@@ -162,11 +162,90 @@ var _ = Describe("RecordIO", func() {
 				gomega.Eventually(recChan, 10).Should(gomega.Receive(&s))
 				gomega.Eventually(errChan, 10).Should(gomega.Receive(&err))
 
-				Ω(s).Should(Equal(byteLst["1 frame with no waiting & prg err at end"]))
+				Ω(s).Should(Equal(byteLst["1 frame with no waiting & prg err at end during frame"]))
 				Ω(err).Should(Equal(io.ErrNoProgress))
 			})
 
-		}) /*
+		})
+		Context("with 1 frames ( waited)", func() {
+
+			It("should read ", func() {
+
+				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
+				go timeoutHelper(52500000, cancelFunc)
+
+				recIO.Read(contextWithCancel, inputLst["1 frame with waiting"], frameReadFunc, errFunc)
+
+				var s []byte
+				gomega.Eventually(recChan, 30).Should(gomega.Receive(&s))
+				Ω(s).Should(Equal(byteLst["1 frame with waiting"]))
+
+			})
+			It("should handle EOF gracefully during prefix reading", func() {
+
+				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
+				go timeoutHelper(52500000, cancelFunc)
+
+				go recIO.Read(contextWithCancel, inputLst["1 frame with waiting & eof at end"], frameReadFunc, errFunc)
+
+				var s []byte
+				var err error
+				gomega.Eventually(recChan, 32).Should(gomega.Receive(&s))
+				gomega.Eventually(errChan, 32).Should(gomega.Receive(&err))
+
+				Ω(s).Should(Equal(byteLst["1 frame with waiting & eof at end"]))
+				Ω(err).Should(Equal(io.EOF))
+
+			})
+			It("should handle EOF gracefully during frame", func() {
+
+				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
+				go timeoutHelper(52500000, cancelFunc)
+
+				go recIO.Read(contextWithCancel, inputLst["1 frame with waiting & eof at end during frame"], frameReadFunc, errFunc)
+
+				var s []byte
+				var err error
+				gomega.Eventually(recChan, 32).Should(gomega.Receive(&s))
+				gomega.Eventually(errChan, 32).Should(gomega.Receive(&err))
+
+				Ω(s).Should(Equal(byteLst["1 frame with waiting & eof at end during frame"]))
+				Ω(err).Should(Equal(frame.ErrorChannelClosedBeforeReceivingFrame))
+
+			})
+			It("should handle specific io error gracefully at prefix", func() {
+
+				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
+				go timeoutHelper(52500000, cancelFunc)
+
+				recIO.Read(contextWithCancel, inputLst["1 frame with waiting & prg err at end"], frameReadFunc, errFunc)
+
+				var s []byte
+				var err error
+				gomega.Eventually(recChan, 32).Should(gomega.Receive(&s))
+				gomega.Eventually(errChan, 32).Should(gomega.Receive(&err))
+
+				Ω(s).Should(Equal(byteLst["1 frame with waiting & prg err at end"]))
+				Ω(err).Should(Equal(io.ErrNoProgress))
+			})
+			It("should handle specific io error gracefully during frame ", func() {
+
+				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
+				go timeoutHelper(52500000, cancelFunc)
+
+				recIO.Read(contextWithCancel, inputLst["1 frame with waiting & prg err at end during frame"], frameReadFunc, errFunc)
+
+				var s []byte
+				var err error
+				gomega.Eventually(recChan, 32).Should(gomega.Receive(&s))
+				gomega.Eventually(errChan, 32).Should(gomega.Receive(&err))
+
+				Ω(s).Should(Equal(byteLst["1 frame with waiting & prg err at end during frame"]))
+				Ω(err).Should(Equal(io.ErrNoProgress))
+			})
+
+		})
+		/*
 			Context("with 2 frames (non waited)", func() {
 
 				It("should read ", fun1c() {
