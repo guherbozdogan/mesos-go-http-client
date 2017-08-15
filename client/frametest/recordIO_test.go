@@ -103,7 +103,7 @@ var _ = Describe("RecordIO", func() {
 				Ω(s).Should(Equal(byteLst["1 frame with no waiting"]))
 
 			})
-			It("should handle EOF gracefully ", func() {
+			It("should handle EOF gracefully during prefix reading", func() {
 
 				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
 				go timeoutHelper(22500000, cancelFunc)
@@ -117,6 +117,22 @@ var _ = Describe("RecordIO", func() {
 
 				Ω(s).Should(Equal(byteLst["1 frame with no waiting & eof at end"]))
 				Ω(err).Should(Equal(io.EOF))
+
+			})
+			It("should handle EOF gracefully during frame", func() {
+
+				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
+				go timeoutHelper(22500000, cancelFunc)
+
+				go recIO.Read(contextWithCancel, inputLst["1 frame with no waiting & eof at end during frame"], frameReadFunc, errFunc)
+
+				var s []byte
+				var err error
+				gomega.Eventually(recChan, 2000).Should(gomega.Receive(&s))
+				gomega.Eventually(errChan, 2000).Should(gomega.Receive(&err))
+
+				Ω(s).Should(Equal(byteLst["1 frame with no waiting & eof at end during frame"]))
+				Ω(err).Should(Equal(frame.ErrorChannelClosedBeforeReceivingFrame))
 
 			})
 			It("should handle specific io error gracefully ", func() {
@@ -134,11 +150,26 @@ var _ = Describe("RecordIO", func() {
 				Ω(s).Should(Equal(byteLst["1 frame with no waiting & prg err at end"]))
 				Ω(err).Should(Equal(io.ErrNoProgress))
 			})
+			It("should handle specific io error gracefully during frame ", func() {
+
+				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
+				go timeoutHelper(22500000, cancelFunc)
+
+				recIO.Read(contextWithCancel, inputLst["1 frame with no waiting & prg err at end during frame"], frameReadFunc, errFunc)
+
+				var s []byte
+				var err error
+				gomega.Eventually(recChan, 10).Should(gomega.Receive(&s))
+				gomega.Eventually(errChan, 10).Should(gomega.Receive(&err))
+
+				Ω(s).Should(Equal(byteLst["1 frame with no waiting & prg err at end"]))
+				Ω(err).Should(Equal(io.ErrNoProgress))
+			})
 
 		}) /*
 			Context("with 2 frames (non waited)", func() {
 
-				It("should read ", func() {
+				It("should read ", fun1c() {
 					//				buf.Write(inputLst[0])
 
 					recIO.Read(context.Background(), inputLst["2 frames with no waiting"], frameReadFunc, errFunc)

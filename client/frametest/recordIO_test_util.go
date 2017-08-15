@@ -126,14 +126,18 @@ func timeoutHelper(priod time.Duration, f func()) {
 }
 
 var byteLst = map[string][]byte{
-	"1 frame with no waiting":                  []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
-	"1 frame with 2s waiting":                  []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
-	"1 incomplete frame with no waiting":       []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\""),
-	"1 frame with no waiting & eof at end":     []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
-	"1 frame with no waiting & prg err at end": []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
-	"2 frames with no waiting":                 []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}20\n{\"type\":\"HEARTBEAT\"}"),
-	"2 frames with 1s waiting":                 []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}20\n{\"type\":\"HEARTBEAT\"}"),
-	"insufficient frame":                       []byte("124\n")}
+	"1 frame with no waiting":                           []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+	"1 frame with 2s waiting":                           []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+	"1 incomplete frame with no waiting":                []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\""),
+	"1 frame with no waiting & eof at end":              []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+	"1 frame with no waiting & eof at end during frame": []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+
+	"1 frame with no waiting & prg err at end":              []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+	"1 frame with no waiting & prg err at end during frame": []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+
+	"2 frames with no waiting": []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}20\n{\"type\":\"HEARTBEAT\"}"),
+	"2 frames with 1s waiting": []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}20\n{\"type\":\"HEARTBEAT\"}"),
+	"insufficient frame":       []byte("124\n")}
 
 // test case map
 var inputLst = map[string]MockReadCloser{
@@ -144,10 +148,21 @@ var inputLst = map[string]MockReadCloser{
 		lst: []*MockFrameReaderCloser{
 			&MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["1 frame with no waiting & eof at end"]},
 			&MockFrameReaderCloser{isErrorOccuringAtPrefix: true, prefixBytes: []byte("121"), err: io.EOF, bytes: byteLst["1 frame with no waiting"]}}},
+
+	"1 frame with no waiting & eof at end during frame": &MultiMockFrameReaderCloser{index: 0,
+		lst: []*MockFrameReaderCloser{
+			&MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["1 frame with no waiting & eof at end during frame"]},
+			&MockFrameReaderCloser{isErrorOccuringAtPrefix: false, prefixBytes: []byte("121"), err: io.EOF, bytes: byteLst["1 frame with no waiting during frame"]}}},
+
 	"1 frame with no waiting & prg err at end": &MultiMockFrameReaderCloser{index: 0,
 		lst: []*MockFrameReaderCloser{
 			&MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["1 frame with no waiting & prg err at end"]},
 			&MockFrameReaderCloser{isErrorOccuringAtPrefix: true, prefixBytes: []byte("121"), err: io.ErrNoProgress, bytes: byteLst["1 frame with no waiting & prg err at end"]}}},
+	"1 frame with no waiting & prg err at end during frame": &MultiMockFrameReaderCloser{index: 0,
+		lst: []*MockFrameReaderCloser{
+			&MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["1 frame with no waiting & prg err at end during frame"]},
+			&MockFrameReaderCloser{isErrorOccuringAtPrefix: false, prefixBytes: []byte("121"), err: io.ErrNoProgress, bytes: byteLst["1 frame with no waiting & prg err at end"]}}},
+
 	"2 frames with no waiting": &MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["2 frames with no waiting"]},
 	"2 frames with 1s waiting": &MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["2 frames with 1s waiting"]},
 	"insufficient frame":       &MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["insufficient frame"]}}
