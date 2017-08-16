@@ -29,7 +29,7 @@ var (
 )
 
 type RecordIO struct {
-	ReadLine func(r *bufio.Reader, rc io.ReadCloser) (Bytes, error)
+	ReadLine func(r *bufio.Reader, rc io.ReadCloser, icd *uint32) (Bytes, error)
 }
 
 func NewRecordIO() *RecordIO {
@@ -39,13 +39,18 @@ func NewRecordIO() *RecordIO {
 type Bytes []byte
 
 //helper functionto read a line with bufio
-func Readln(r *bufio.Reader, rc io.ReadCloser) (Bytes, error) {
+func Readln(r *bufio.Reader, rc io.ReadCloser, isContextDone *uint32) (Bytes, error) {
 	var (
 		isPrefix bool  = true
 		err      error = nil
 		line, ln []byte
 	)
 	for isPrefix && err == nil {
+
+		if isAtomicValSet(isContextDone) {
+			return []byte(""), ErrorParentContextBeenCancelled
+		}
+
 		line, isPrefix, err = r.ReadLine()
 		if line != nil {
 			ln = append(ln, line...)
@@ -77,7 +82,6 @@ func (rc *RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadF
 
 	//initialize the bufio
 	r := bufio.NewReader(reader)
-	//r := reader
 
 	//to be able to wait for the graceful exit of below function
 	var wg sync.WaitGroup
@@ -85,26 +89,15 @@ func (rc *RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadF
 	//note: check how channels receive arrays, if they receive as copies, is it possible to send a channel an address of bytes from a local variable? if so, use the pointer version instead of copy by value
 
 	// go function
-	//go func (r bufio.Reader,  rfc chan bytes[], erc chan error, ops * uint32,)   {
 	go func() {
 		//graceful exit
 		defer wg.Done()
 
-		//check if context is already cancelled/done, if so, return
-		fcc := func() bool {
-			opsFinal := atomic.LoadUint32(&icd)
-			if opsFinal > 0 {
-				return true
-			} else {
-				return false
-			}
-		}
-
-		for !fcc() {
-			b, err := rc.ReadLine(r, reader)
+		for !isAtomicValSet(&icd) {
+			b, err := rc.ReadLine(r, reader, &icd)
 
 			//check if context is already cancelled/done, if so, return
-			if fcc() {
+			if isAtomicValSet(&icd) {
 				return
 			}
 			if err != nil {
@@ -123,6 +116,10 @@ func (rc *RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadF
 			si, errCn := strconv.Atoi(s1)
 			//add err handling here!
 
+			if isAtomicValSet(&icd) {
+				return
+			}
+
 			if errCn != nil {
 				errc <- ErrorFormatErr
 				//log error !
@@ -140,12 +137,12 @@ func (rc *RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadF
 
 			trbr := trb[:]
 			l := int64(0) //length of read bytes
-			for !fcc() {
+			for !isAtomicValSet(&icd) {
 				ni, err := reader.Read(trbr)
 				n := int64(ni)
 				l += n
 				//check if context is already cancelled/done, if so, return
-				if fcc() {
+				if isAtomicValSet(&icd) {
 					return
 				}
 
@@ -198,7 +195,7 @@ func (rc *RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadF
 		atomic.AddUint32(&icd, 1)
 		//wait graceful close
 		wg.Wait()
-		erf(ctx, ctx.Err())
+		erf(ctx, ErrorParentContextBeenCancelled)
 		close(errc)
 		return
 

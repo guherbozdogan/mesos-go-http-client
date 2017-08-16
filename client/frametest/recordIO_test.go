@@ -13,6 +13,84 @@ import (
 
 var _ = Describe("RecordIO", func() {
 
+	var byteLst = map[string][]byte{
+		"1 frame with no waiting":                    []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+		"1 frame with waiting":                       []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+		"2 frame with no waiting & eof at prefix":    []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+		"2 frame with no waiting & eof during frame": []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+
+		"2 frame with no waiting & prg err at prefix":    []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+		"2 frame with no waiting & prg err during frame": []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+		"2 frame with waiting & eof at prefix":           []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+		"2 frame with waiting & eof during frame":        []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+
+		"2 frame with waiting & prg err at prefix":    []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+		"2 frame with waiting & prg err during frame": []byte("{\"type\": \"SUBSCRIBED\",\"subscribed\": {\"framework_id\": {\"value\":\"12220-3440-12532-2345\"},\"heartbeat_interval_seconds\":15.0}"),
+
+		"Context cancelled during prefix": []byte(""),
+		"Context cancelled during frame":  []byte("trial"),
+		"Context cancelled before prefix": []byte("")}
+
+	// test case map
+	var inputLst = map[string]MockReadCloser{
+		"1 frame with no waiting": &MultiMockFrameReaderCloser{index: 0,
+			lst: []*MockFrameReaderCloser{
+				&MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["1 frame with no waiting"]},
+			}},
+
+		"1 frame with waiting": &MultiMockFrameReaderCloser{index: 0,
+			lst: []*MockFrameReaderCloser{
+				&MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["1 frame with waiting"]},
+			}},
+		//	"1 incomplete frame with no waiting": &MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["1 incomplete frame with no waiting"]},
+		"2 frame with no waiting & eof at prefix": &MultiMockFrameReaderCloser{index: 0,
+			lst: []*MockFrameReaderCloser{
+				&MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["2 frame with no waiting & eof at prefix"]},
+				&MockFrameReaderCloser{isErrorOccuringAtPrefix: true, err: io.EOF}}},
+
+		"2 frame with waiting & eof at prefix": &MultiMockFrameReaderCloser{index: 0,
+			lst: []*MockFrameReaderCloser{
+				&MockFrameReaderCloser{period: 2, prefixBytes: []byte("121"), bytes: byteLst["2 frame with waiting & eof at prefix"]},
+				&MockFrameReaderCloser{period: 2, isErrorOccuringAtPrefix: true, err: io.EOF}}},
+
+		"2 frame with no waiting & eof during frame": &MultiMockFrameReaderCloser{index: 0,
+			lst: []*MockFrameReaderCloser{
+				&MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["2 frame with no waiting & eof during frame"]},
+				&MockFrameReaderCloser{isErrorOccuringAtPrefix: false, prefixBytes: []byte("121"), err: io.EOF}}},
+
+		"2 frame with waiting & eof during frame": &MultiMockFrameReaderCloser{index: 0,
+			lst: []*MockFrameReaderCloser{
+				&MockFrameReaderCloser{period: 2, prefixBytes: []byte("121"), bytes: byteLst["2 frame with waiting & eof during frame"]},
+				&MockFrameReaderCloser{period: 2, isErrorOccuringAtPrefix: false, prefixBytes: []byte("121"), err: io.EOF}}},
+
+		"2 frame with no waiting & prg err at prefix": &MultiMockFrameReaderCloser{index: 0,
+			lst: []*MockFrameReaderCloser{
+				&MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["2 frame with no waiting & prg err at prefix"]},
+				&MockFrameReaderCloser{isErrorOccuringAtPrefix: true, err: io.ErrNoProgress}}},
+
+		"2 frame with no waiting & prg err during frame": &MultiMockFrameReaderCloser{index: 0,
+			lst: []*MockFrameReaderCloser{
+				&MockFrameReaderCloser{prefixBytes: []byte("121"), bytes: byteLst["2 frame with no waiting & prg err during frame"]},
+				&MockFrameReaderCloser{isErrorOccuringAtPrefix: false, prefixBytes: []byte("121"), err: io.ErrNoProgress}}},
+
+		"2 frame with waiting & prg err at prefix": &MultiMockFrameReaderCloser{index: 0,
+			lst: []*MockFrameReaderCloser{
+				&MockFrameReaderCloser{period: 1, prefixBytes: []byte("121"), bytes: byteLst["2 frame with waiting & prg err at prefix"]},
+				&MockFrameReaderCloser{period: 1, isErrorOccuringAtPrefix: true, err: io.ErrNoProgress}}},
+		"2 frame with waiting & prg err during frame": &MultiMockFrameReaderCloser{index: 0,
+			lst: []*MockFrameReaderCloser{
+				&MockFrameReaderCloser{period: 1, prefixBytes: []byte("121"), bytes: byteLst["2 frame with waiting & prg err during frame"]},
+				&MockFrameReaderCloser{period: 1, isErrorOccuringAtPrefix: false, prefixBytes: []byte("121"), err: io.ErrNoProgress}}},
+
+		"Context cancelled during prefix": &MultiMockFrameReaderCloser{index: 0, lst: []*MockFrameReaderCloser{
+			&MockFrameReaderCloser{prefixBytes: []byte(""), bytes: byteLst["Context cancelled during prefix"]}}},
+
+		"Context cancelled during frame": &MultiMockFrameReaderCloser{index: 0, lst: []*MockFrameReaderCloser{
+			&MockFrameReaderCloser{period: 7, prefixBytes: []byte("121"), bytes: byteLst["Context cancelled during frame"]}}},
+
+		"Context cancelled before prefix": &MultiMockFrameReaderCloser{index: 0, lst: []*MockFrameReaderCloser{
+			&MockFrameReaderCloser{prefixBytes: []byte("12"), bytes: byteLst["Context cancelled before prefix"]}}}}
+
 	var recIO *frame.RecordIO
 	var recChan chan []byte
 	var errChan chan error
@@ -31,7 +109,7 @@ var _ = Describe("RecordIO", func() {
 	}
 
 	//mock read line replacement
-	var readLnReplacement = func(r *bufio.Reader, rc io.ReadCloser) (frame.Bytes, error) {
+	var readLnReplacement = func(r *bufio.Reader, rc io.ReadCloser, icd *uint32) (frame.Bytes, error) {
 		tmp, isok := rc.(*MultiMockFrameReaderCloser)
 		if isok {
 			if tmp.index < len(tmp.lst) {
@@ -59,7 +137,7 @@ var _ = Describe("RecordIO", func() {
 		}
 
 	}
-	var earlierReadLine func(r *bufio.Reader, rc io.ReadCloser) (frame.Bytes, error)
+	var earlierReadLine func(r *bufio.Reader, rc io.ReadCloser, icd *uint32) (frame.Bytes, error)
 	BeforeEach(func() {
 		//frame.Readln =
 		recIO = frame.NewRecordIO()
@@ -76,7 +154,6 @@ var _ = Describe("RecordIO", func() {
 	})
 	Describe("Testing Read func", func() {
 		Context("with  frames (non waited)", func() {
-
 			It("should read ", func() {
 
 				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
@@ -124,7 +201,7 @@ var _ = Describe("RecordIO", func() {
 			It("should handle specific io error gracefully at prefix", func() {
 
 				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
-				go timeoutHelper(22500000, cancelFunc)
+				go timeoutHelper(22500000000, cancelFunc)
 
 				recIO.Read(contextWithCancel, inputLst["2 frame with no waiting & prg err at prefix"], frameReadFunc, errFunc)
 
@@ -139,7 +216,7 @@ var _ = Describe("RecordIO", func() {
 			It("should handle specific io error gracefully during frame ", func() {
 
 				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
-				go timeoutHelper(22500000, cancelFunc)
+				go timeoutHelper(22500000000, cancelFunc)
 
 				recIO.Read(contextWithCancel, inputLst["2 frame with no waiting & prg err during frame"], frameReadFunc, errFunc)
 
@@ -231,20 +308,60 @@ var _ = Describe("RecordIO", func() {
 			})
 
 		})
-		/*
-			Context("with 2 frames (non waited)", func() {
 
-				It("should read ", fun1c() {
-					//				buf.Write(inputLst[0])
+		Context("with cancel called on prefix", func() {
 
-					recIO.Read(context.Background(), inputLst["2 frames with no waiting"], frameReadFunc, errFunc)
+			It("should gracefully handle ", func() {
+				//				buf.Write(inputLst[0])
 
-					gomega.Eventually(recChan, 10).Should(gomega.Receive())
+				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
+				go timeoutHelper(1500000000, cancelFunc)
 
-				})
+				recIO.Read(contextWithCancel, inputLst["Context cancelled during prefix"], frameReadFunc, errFunc)
+
+				var err error
+				gomega.Eventually(errChan, 32).Should(gomega.Receive(&err))
+
+				Ω(err).Should(Equal(frame.ErrorParentContextBeenCancelled))
 
 			})
-		*/
+
+		})
+		Context("with cancel called before prefix", func() {
+
+			It("should gracefully handle ", func() {
+				//				buf.Write(inputLst[0])
+
+				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
+				cancelFunc()
+
+				recIO.Read(contextWithCancel, inputLst["Context cancelled before prefix"], frameReadFunc, errFunc)
+
+				var err error
+				gomega.Eventually(errChan, 32).Should(gomega.Receive(&err))
+
+				Ω(err).Should(Equal(frame.ErrorParentContextBeenCancelled))
+
+			})
+
+		})
+		Context("with cancel called during frame", func() {
+
+			It("should gracefully handle ", func() {
+				//				buf.Write(inputLst[0])
+				contextWithCancel, cancelFunc := context.WithCancel(context.Background())
+				go timeoutHelper(2500000000, cancelFunc)
+
+				recIO.Read(contextWithCancel, inputLst["Context cancelled during frame"], frameReadFunc, errFunc)
+
+				var err error
+				gomega.Eventually(errChan, 32).Should(gomega.Receive(&err))
+
+				Ω(err).Should(Equal(frame.ErrorParentContextBeenCancelled))
+
+			})
+
+		})
 
 	})
 })
