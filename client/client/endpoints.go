@@ -49,6 +49,11 @@ type Endpoints struct {
 type CallResponse interface {
 }
 
+type StreamData struct {
+	ContentType string
+	StreamID    string
+}
+
 func (e Endpoints) Subscribe(ctx context.Context, FrameworkId *mesos_v1.FrameworkID,
 	Mes *mesos_v1_scheduler.Call_Subscribe) (CallResponse, error) {
 

@@ -55,7 +55,7 @@ func Readln(r *bufio.Reader, rc io.ReadCloser, isContextDone *uint32) (Bytes, er
 		if line != nil {
 			ln = append(ln, line...)
 		} else {
-			return []byte(""), ErrorInternal
+			return []byte(""), err
 		}
 
 	}
@@ -138,7 +138,7 @@ func (rc *RecordIO) Read(ctx context.Context, reader io.ReadCloser, f FrameReadF
 			trbr := trb[:]
 			l := int64(0) //length of read bytes
 			for !isAtomicValSet(&icd) {
-				ni, err := reader.Read(trbr)
+				ni, err := r.Read(trbr)
 				n := int64(ni)
 				l += n
 				//check if context is already cancelled/done, if so, return

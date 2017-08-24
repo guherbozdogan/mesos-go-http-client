@@ -12,10 +12,9 @@ import (
 	"github.com/guherbozdogan/kit/circuitbreaker"
 	. "github.com/guherbozdogan/kit/endpoint"
 
-	"github.com/guherbozdogan/kit/examples/addsvc"
 	"github.com/guherbozdogan/kit/log"
 	"github.com/guherbozdogan/kit/ratelimit"
-	"github.com/guherbozdogan/kit/tracing/opentracing"
+	//	"github.com/guherbozdogan/kit/tracing/opentracing"
 	httptransport "github.com/guherbozdogan/kit/transport/http"
 	"github.com/guherbozdogan/mesos-go-http-client/client/frame"
 )
@@ -69,6 +68,9 @@ func (c *Clients) getClientofLeader() (lc *Client, err error) {
 
 func NewHAClient(instances string, tracer stdopentracing.Tracer, logger log.Logger, f frame.FrameReadFunc, e frame.ErrorFunc) (*Clients, error) {
 
+	if tracer == nil {
+
+	}
 	var hostList []string
 	hostList = strings.Split(instances, ";")
 
@@ -106,26 +108,27 @@ func NewHAClient(instances string, tracer stdopentracing.Tracer, logger log.Logg
 
 		var subscribeEndPoint Endpoint = nil
 
-		subscribeEndPoint = httptransport.NewClient(
+		subscribeEndPoint = httptransport.NewBSClient(
 			"POST",
-			copyURL(u, "/sum"),
-			addsvc.EncodeHTTPGenericRequest,
-			addsvc.DecodeHTTPSumResponse,
+			copyURL(u, "/api/v1/scheduler"),
+			EncodeHTTPSubscribeRequestToJSON,
+			DecodeHTTPSubscribeResponse,
 			c.EndpointsofClient.FrameReadFunc,
 			frame.CTRecordIO,
 			c.EndpointsofClient.FrameErrorFunc,
 			//httptransport.ClientBefore(opentracing.ToHTTPRequest(tracer, logger)),
 		).Endpoint()
-		subscribeEndPoint = opentracing.TraceClient(tracer, "Subscribe")(subscribeEndPoint)
+		//	subscribeEndPoint = opentracing.TraceClient(tracer, "Subscribe")(subscribeEndPoint)
 		subscribeEndPoint = limiter(subscribeEndPoint)
 		subscribeEndPoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{
 			Name:    "Subscribe",
 			Timeout: 30 * time.Second,
 		}))(subscribeEndPoint)
 
-		var t *Endpoints = c.EndpointsofClient
+		//var t *Endpoints = c.EndpointsofClient
 
-		t.SubscribeEndpoint = subscribeEndPoint
+		c.EndpointsofClient.SubscribeEndpoint = subscribeEndPoint
+		//t.SubscribeEndpoint = subscribeEndPoint
 
 		i++
 	}

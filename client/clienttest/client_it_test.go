@@ -24,32 +24,32 @@ var _ = Describe("It testing with running mesos", func() {
 				var errChan chan error
 				recChan = make(chan []byte, 10)
 				errChan = make(chan error, 2)
-				clients, err := client.NewHAClient("127.0.0.1/scheduler:5050;127.0.0.2/scheduler:5050",
-					nil, nil, nil, nil)
+
+				fr := func(c context.Context, f frame.Frame, i int64) context.Context {
+					fmt.Println(f)
+					return c
+				}
+				er := func(c context.Context, i interface{}) context.Context {
+
+					var err error = i.(error)
+
+					fmt.Println(err.Error())
+					return c
+				}
+				clients, err := client.NewHAClient("127.0.0.1:5050;127.0.0.2:5050",
+					nil, nil, fr, er)
 
 				if err != nil {
 					fmt.Println(err.Error())
 				} else {
-					clients.Clients[0].EndpointsofClient.FrameReadFunc = func(c context.Context, f frame.Frame, i int64) context.Context {
-						fmt.Println(f)
-						return c
-					}
 
-					clients.Clients[0].EndpointsofClient.FrameErrorFunc =
-						func(c context.Context, i interface{}) context.Context {
-
-							var err error = i.(error)
-
-							fmt.Println(err.Error())
-							return c
-						}
 					s1 := string("guhu")
 					s2 := string("Example1")
-					s3 := string("")
-					b := bool(false)
+					//					s3 := string("")
+					//					b := bool(false)
 					fl := float64(1000000000)
-					t1 := mesos_v1.FrameworkInfo_Capability_Type(1)
-					clients.Clients[0].EndpointsofClient.Subscribe(context.Background(),
+					//					t1 := mesos_v1.FrameworkInfo_Capability_Type(mesos_v1.FrameworkInfo_Capability_SHARED_RESOURCES)
+					rsp, err1 := clients.Clients[0].EndpointsofClient.Subscribe(context.Background(),
 						//&mesos_v1.FrameworkID,
 						nil,
 
@@ -57,18 +57,24 @@ var _ = Describe("It testing with running mesos", func() {
 							&mesos_v1.FrameworkInfo{
 								User: &s1, Name: &s2,
 								Id: nil, FailoverTimeout: &fl,
-								Checkpoint: &b,
-								Role:       &s3,
-								Roles:      []string{string("test")}, Capabilities: []*mesos_v1.FrameworkInfo_Capability{
-									&mesos_v1.FrameworkInfo_Capability{
-										&t1,
-										nil}}},
+								//Checkpoint: &b,
+								//Role:       &s3,
+								//Roles:      []string{string("test")},
+								/*Capabilities: []*mesos_v1.FrameworkInfo_Capability{
+								&mesos_v1.FrameworkInfo_Capability{
+									&t1,
+									nil}}*/
+							},
 							nil, nil})
 
 					var s []byte
 					var err error
-					gomega.Eventually(recChan).Should(gomega.Receive(&s))
-					gomega.Eventually(errChan).Should(gomega.Receive(&err))
+
+					if rsp == nil || err1 != nil {
+
+					}
+					gomega.Eventually(recChan, 100000).Should(gomega.Receive(&s))
+					gomega.Eventually(errChan, 100000).Should(gomega.Receive(&err))
 
 				}
 			})

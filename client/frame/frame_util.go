@@ -10,7 +10,7 @@ const (
 func NewFrameIO(t FrameIOType) FrameIO {
 	switch t {
 	case CTRecordIO:
-		return &RecordIO{} //NewRecordIO(ctx)
+		return NewRecordIO() //NewRecordIO(ctx)
 	default:
 		return nil //NewRecordIO(ctx)
 	}
